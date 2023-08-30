@@ -27,6 +27,7 @@ func CoreToModel(dataCore task.Core) Task {
 		ProjectID:  dataCore.ProjectID,
 		DetailTask: dataCore.DetailTask,
 		Status:     dataCore.Status,
+		Project:    _projectData.Project{},
 	}
 }
 

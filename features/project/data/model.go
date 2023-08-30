@@ -27,6 +27,7 @@ func CoreToModel(dataCore project.Core) Project {
 		UserID:        dataCore.UserID,
 		DetailProject: dataCore.DetailProject,
 		Description:   dataCore.Description,
+		User:          _userData.User{},
 	}
 }
 

@@ -40,7 +40,7 @@ func (handler *TaskHandler) CreateTask(c echo.Context) error {
 
 		}
 	}
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusCreated, "success insert data", nil))
+	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "Item created successfully", nil))
 }
 
 func (handler *TaskHandler) DeleteTask(c echo.Context) error {

@@ -60,6 +60,7 @@ func (repo *taskQuery) Delete(id uint) error {
 
 // Insert implements task.TaskDataInterface
 func (repo *taskQuery) Insert(input task.Core) error {
+
 	taskGorm := CoreToModel(input)
 
 	// simpan ke DB
