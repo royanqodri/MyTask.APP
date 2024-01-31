@@ -16,43 +16,46 @@ import (
 
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func InitRouter(db *gorm.DB, e *echo.Echo) {
+func InitRouter(db *gorm.DB, e *gin.Engine) {
 	userData := _userData.New(db)
 	userService := _userService.New(userData)
 	userHandlerAPI := _userHandler.New(userService)
 
 	projectData := _projectData.New(db)
 	projectService := _projectService.New(projectData)
-	projectHandlerAPI := _projectHandler.New(projectService)
+	projectHandlerAPI := _projectHandler.NewProjectHandler(projectService)
 
 	taskData := _taskData.New(db)
 	taskService := _taskService.New(taskData)
 	taskHandlerAPI := _taskHandler.New(taskService)
 
-	e.POST("/login", userHandlerAPI.Login)
+	api := e.Group("/api") // Grupkan semua rute API di bawah "/api"
 
-	e.GET("/users", userHandlerAPI.GetAllUser, middlewares.JWTMiddleware())
-	e.GET("/users/:user_id", userHandlerAPI.GetUserById)
-	e.POST("/users", userHandlerAPI.CreateUser, middlewares.JWTMiddleware())
-	e.PUT("/users", userHandlerAPI.UpdateUser, middlewares.JWTMiddleware())
-	e.DELETE("/users", userHandlerAPI.DeleteUser, middlewares.JWTMiddleware())
+	api.POST("/login", userHandlerAPI.Login)
 
-	e.POST("/projects", projectHandlerAPI.CreateProject, middlewares.JWTMiddleware())
-	e.GET("/projects", projectHandlerAPI.GetAllProject, middlewares.JWTMiddleware())
-	e.GET("/projects/:projectid", projectHandlerAPI.GetProjectById, middlewares.JWTMiddleware())
-	e.PUT("/projects/:projectid", projectHandlerAPI.UpdateProject, middlewares.JWTMiddleware())
-	e.DELETE("/projects/:projectid", projectHandlerAPI.DeleteProject, middlewares.JWTMiddleware())
+	api.GET("/users", userHandlerAPI.GetAllUser, middlewares.JWTMiddleware())
+	api.GET("/users/:user_id", userHandlerAPI.GetUserById)
+	api.POST("/users", userHandlerAPI.CreateUser, middlewares.JWTMiddleware())
+	api.PUT("/users", userHandlerAPI.UpdateUser, middlewares.JWTMiddleware())
+	api.DELETE("/users", userHandlerAPI.DeleteUser, middlewares.JWTMiddleware())
 
-	e.POST("/tasks", taskHandlerAPI.CreateTask, middlewares.JWTMiddleware())
-	e.DELETE("/tasks/:taskid", taskHandlerAPI.DeleteTask, middlewares.JWTMiddleware())
-	e.PUT("/tasks/:taskid", taskHandlerAPI.UpdateTask, middlewares.JWTMiddleware())
+	api.POST("/projects", projectHandlerAPI.CreateProject, middlewares.JWTMiddleware())
+	api.GET("/projects", projectHandlerAPI.GetAllProjects, middlewares.JWTMiddleware())
+	api.GET("/projects/:projectid", projectHandlerAPI.GetProjectById, middlewares.JWTMiddleware())
+	api.PUT("/projects/:projectid", projectHandlerAPI.UpdateProject, middlewares.JWTMiddleware())
+	api.DELETE("/projects/:projectid", projectHandlerAPI.DeleteProject, middlewares.JWTMiddleware())
 
-	e.GET("/hello", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]any{
+	api.POST("/tasks", taskHandlerAPI.CreateTask, middlewares.JWTMiddleware())
+	api.DELETE("/tasks/:taskid", taskHandlerAPI.DeleteTask, middlewares.JWTMiddleware())
+	api.PUT("/tasks/:taskid", taskHandlerAPI.UpdateTask, middlewares.JWTMiddleware())
+
+	// Rute non-API
+	e.GET("/hello", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
 			"message": "hello world",
 		})
 	})

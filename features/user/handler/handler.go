@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {
@@ -20,40 +20,40 @@ func New(service user.UserServiceInterface) *UserHandler {
 	}
 }
 
-func (handler *UserHandler) Login(c echo.Context) error {
+func (handler *UserHandler) Login(c *gin.Context) {
 	userInput := new(LoginRequest)
-	errBind := c.Bind(&userInput) // mendapatkan data yang dikirim oleh FE melalui request body
+	errBind := c.Bind(&userInput)
 	if errBind != nil {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "error bind data. data not valid", nil))
+		helpers.WebResponse(c, http.StatusBadRequest, "error bind data. data not valid", nil)
+		return
 	}
 
 	dataLogin, token, err := handler.userService.Login(userInput.Email, userInput.Password)
 	if err != nil {
 		if strings.Contains(err.Error(), "validation") {
-			return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, err.Error(), nil))
+			helpers.WebResponse(c, http.StatusBadRequest, err.Error(), nil)
 		} else {
-			return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "error login", nil))
-
+			helpers.WebResponse(c, http.StatusInternalServerError, "error login", nil)
 		}
+		return
 	}
-	response := map[string]any{
+
+	response := map[string]interface{}{
 		"token":   token,
 		"user_id": dataLogin.ID,
 		"name":    dataLogin.Name,
 	}
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusCreated, "success login", response))
+
+	helpers.WebResponse(c, http.StatusOK, "success login", response)
 }
 
-func (handler *UserHandler) GetAllUser(c echo.Context) error {
+func (handler *UserHandler) GetAllUser(c *gin.Context) {
 	result, err := handler.userService.GetAll()
 	if err != nil {
-		// return c.JSON(http.StatusInternalServerError, map[string]any{
-		// 	"code": 500,
-		// 	"message": "hello world",
-		// })
-		return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "error read data", nil))
+		helpers.WebResponse(c, http.StatusInternalServerError, "error read data", nil)
+		return
 	}
-	// mapping dari struct core to struct response
+
 	var usersResponse []UserResponse
 	for _, value := range result {
 		usersResponse = append(usersResponse, UserResponse{
@@ -65,50 +65,50 @@ func (handler *UserHandler) GetAllUser(c echo.Context) error {
 			CreatedAt:   value.CreatedAt,
 		})
 	}
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "success read data", usersResponse))
-	// return c.JSON(http.StatusOK, map[string]any{
-	// 	"code":    200,
-	// 	"message": "success read data",
-	// 	"data":    usersResponse,
-	// })
 
+	helpers.WebResponse(c, http.StatusOK, "success read data", usersResponse)
 }
 
-func (handler *UserHandler) CreateUser(c echo.Context) error {
+func (handler *UserHandler) CreateUser(c *gin.Context) {
 	userInput := new(UserRequest)
-	errBind := c.Bind(&userInput) // mendapatkan data yang dikirim oleh FE melalui request body
+	errBind := c.Bind(&userInput)
 	if errBind != nil {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "error bind data. data not valid", nil))
+		helpers.WebResponse(c, http.StatusBadRequest, "error bind data. data not valid", nil)
+		return
 	}
-	//mapping dari struct request to struct core
+
 	userCore := RequestToCore(*userInput)
 	err := handler.userService.Create(userCore)
 	if err != nil {
 		if strings.Contains(err.Error(), "validation") {
-			return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, err.Error(), nil))
+			helpers.WebResponse(c, http.StatusBadRequest, err.Error(), nil)
 		} else {
-			return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "error insert data", nil))
-
+			helpers.WebResponse(c, http.StatusInternalServerError, "error insert data", nil)
 		}
+		return
 	}
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusCreated, "success insert data", nil))
+
+	helpers.WebResponse(c, http.StatusCreated, "success insert data", nil)
 }
 
-func (handler *UserHandler) GetUserById(c echo.Context) error {
+func (handler *UserHandler) GetUserById(c *gin.Context) {
 	id := c.Param("user_id")
 	idConv, errConv := strconv.Atoi(id)
 	if errConv != nil {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "wrong id", nil))
+		helpers.WebResponse(c, http.StatusBadRequest, "wrong id", nil)
+		return
 	}
+
 	result, err := handler.userService.GetById(uint(idConv))
 	if err != nil {
 		if strings.Contains(err.Error(), "validation") {
-			return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, err.Error(), nil))
+			helpers.WebResponse(c, http.StatusBadRequest, err.Error(), nil)
 		} else {
-			return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "error insert data", nil))
-
+			helpers.WebResponse(c, http.StatusInternalServerError, "error read data", nil)
 		}
+		return
 	}
+
 	resultResponse := UserResponse{
 		ID:          result.ID,
 		Name:        result.Name,
@@ -117,60 +117,50 @@ func (handler *UserHandler) GetUserById(c echo.Context) error {
 		PhoneNumber: result.PhoneNumber,
 		CreatedAt:   result.CreatedAt,
 	}
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "success read data", resultResponse))
+
+	helpers.WebResponse(c, http.StatusOK, "success read data", resultResponse)
 }
 
-func (handler *UserHandler) UpdateUser(c echo.Context) error {
-
-	// Ambil data pengguna yang akan diperbarui dari permintaan JSON
+func (handler *UserHandler) UpdateUser(c *gin.Context) {
 	userInput := new(UserRequest)
 	errBind := c.Bind(&userInput)
 	if errBind != nil {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "Error binding data", nil))
+		helpers.WebResponse(c, http.StatusBadRequest, "Error binding data", nil)
+		return
 	}
 
-	// Mapping data dari UserRequest ke struct Core
 	userCore := RequestToCore(*userInput)
 	err := handler.userService.Update(userCore)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return c.JSON(http.StatusNotFound, helpers.WebResponse(http.StatusNotFound, "User not found", nil))
+			helpers.WebResponse(c, http.StatusNotFound, "User not found", nil)
 		} else {
-			return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "error updating data user", nil))
-
+			helpers.WebResponse(c, http.StatusInternalServerError, "error updating data user", nil)
 		}
+		return
 	}
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "User Updateed successfully", nil))
+
+	helpers.WebResponse(c, http.StatusOK, "User Updated successfully", nil)
 }
 
-func (handler *UserHandler) DeleteUser(c echo.Context) error {
+func (handler *UserHandler) DeleteUser(c *gin.Context) {
 	userInput := new(UserRequest)
 	errBind := c.Bind(&userInput)
 	if errBind != nil {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "Error binding data", nil))
+		helpers.WebResponse(c, http.StatusBadRequest, "Error binding data", nil)
+		return
 	}
 
-	// Mapping data dari UserRequest ke struct Core
 	var userCore user.Core
 	err := handler.userService.Delete(userCore)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return c.JSON(http.StatusNotFound, helpers.WebResponse(http.StatusNotFound, "User not found", nil))
+			helpers.WebResponse(c, http.StatusNotFound, "User not found", nil)
 		} else {
-			return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "error Deleted data user", nil))
-
+			helpers.WebResponse(c, http.StatusInternalServerError, "error Deleted data user", nil)
 		}
+		return
 	}
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "User Deleted successfully", nil))
+
+	helpers.WebResponse(c, http.StatusOK, "User Deleted successfully", nil)
 }
-
-// Panggil fungsi service untuk menghapus pengguna berdasarkan `user_id`
-// 	err = handler.userService.Delete(uint(userID))
-// 	if err != nil {
-// 		if strings.Contains(err.Error(), "not found") {
-// 			return c.JSON(http.StatusNotFound, helpers.WebResponse(http.StatusNotFound, "User not found", nil))
-// 		}
-// 		return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "Error deleting user", nil))
-
-// 	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "User deleted successfully", nil))
-// }

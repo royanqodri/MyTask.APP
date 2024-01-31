@@ -1,44 +1,66 @@
-## Setup
 
-* run go mod
-    ```
-    go mod init projectname
-    ```
+# MyTask.App
 
-* download echo
-    ```
-    go get -u github.com/labstack/echo/v4
-    ```
 
-* download gorm
-    ```
-    go get -u gorm.io/gorm
-    go get -u gorm.io/driver/mysql
-    ```
+Readme in english [click here]().
 
-* download viper (to load .env automatically)
-    ```
-    go get github.com/spf13/viper
-    ```
+MyTask app adalah sebuah aplikasi untuk manajemen pengelolaan task atau sebuah project untuk user. Dengan aplikasi ini, pengguna / user akan lebih mudah dan felxible dalam manajemen task dan mengatur projectnya. 
 
-* create file `local.env`
-    ```
-    export DBUSER='root'
-    export DBPASS='qwerty123'
-    export DBHOST='127.0.0.1'
-    export DBPORT='3306'
-    export DBNAME='db_loanee_gorm'
-    ```
 
-## Task
-* tambahkan endpoint untuk CRUD user dan item
-* buat repo pengumpulan tugas dengan nama `rest-api-clean-arch`
-    ```
-    UPDATE /users/:user_id
-    DELETE /users/:user_id
-    POST /items
-    GET /items
-    GET /items/:item_id
-    PUT /items/:item_id
-    DELETE /items/:item_id
-    ```
+## Fitur Users 
+
+- Registers
+- Login Users
+- CRUD Users
+
+## Fitur Task & Project
+
+- CRUD Task
+- CRUD Project
+
+## Teknologi
+- Database (PostgreSQL, DBeaver)
+- Golang 
+- Framework (GIN)
+- ORM (GORM)
+
+## Menjalankan Lokal
+
+Cloning project
+
+```bash
+  $ 
+```
+
+Masuk ke direktori project
+
+```bash
+  $ cd ~/nama project kamu
+```
+Buat `database` baru
+
+Buat sebuah file dengan nama di dalam folder root project `.env` dengan format dibawah ini. Sesuaikan configurasi di komputer lokal
+
+```bash
+export DBUSER='postgres'
+export DBPASS='masukkan password kamu'
+export DBHOST='localhost'
+export DBPORT='5432'
+export DBNAME='my_task_app'
+export JWTSECRET='......'
+
+```
+
+Jalankan aplikasi 
+
+```bash
+  $ go run main.go
+```
+
+
+## Authors
+
+- [@royanqodri](https://github.com/royanqodri)
+
+
+ 

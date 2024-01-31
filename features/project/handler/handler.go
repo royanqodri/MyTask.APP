@@ -8,47 +8,54 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 )
 
 type ProjectHandler struct {
 	projectService project.ProjectServiceInterface
 }
 
-func New(service project.ProjectServiceInterface) *ProjectHandler {
+func NewProjectHandler(service project.ProjectServiceInterface) *ProjectHandler {
 	return &ProjectHandler{
-		projectService: service, // Mengganti projectService dengan service
+		projectService: service,
 	}
 }
 
-func (handler *ProjectHandler) CreateProject(c echo.Context) error {
+func (handler *ProjectHandler) CreateProject(c *gin.Context) {
+	// Ambil ID pengguna dari token
 	id := middlewares.ExtractTokenUserId(c)
-	userInput := new(ProjectRequest)
-	errBind := c.Bind(&userInput) // mendapatkan data yang dikirim oleh FE melalui request body
-	if errBind != nil {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "error bind data. data not valid", nil))
+
+	var projectInput ProjectRequest
+	if err := c.BindJSON(&projectInput); err != nil {
+		helpers.WebResponse(c, http.StatusBadRequest, "Error binding data", nil)
+		return
 	}
-	//mapping dari struct request to struct core
-	projectCore := RequestToCore(*userInput)
+
+	// Mapping dari struct request ke struct core
+	projectCore := RequestToCore(projectInput)
 	projectCore.UserID = uint(id)
+
 	err := handler.projectService.Create(projectCore)
 	if err != nil {
 		if strings.Contains(err.Error(), "validation") {
-			return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, err.Error(), nil))
+			helpers.WebResponse(c, http.StatusBadRequest, err.Error(), nil)
 		} else {
-			return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "error insert data", nil))
-
+			helpers.WebResponse(c, http.StatusInternalServerError, "Error inserting data", nil)
 		}
+		return
 	}
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusCreated, "success insert data", nil))
+
+	helpers.WebResponse(c, http.StatusCreated, "Success inserting data", nil)
 }
 
-func (handler *ProjectHandler) GetAllProject(c echo.Context) error {
+func (handler *ProjectHandler) GetAllProjects(c *gin.Context) {
 	result, err := handler.projectService.GetAll()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "error read data", nil))
+		helpers.WebResponse(c, http.StatusInternalServerError, "Error reading data", nil)
+		return
 	}
-	// mapping dari struct core to struct response
+
+	// Mapping dari struct core ke struct response
 	var projectResponse []ProjectResponse
 	for _, value := range result {
 		projectResponse = append(projectResponse, ProjectResponse{
@@ -60,29 +67,28 @@ func (handler *ProjectHandler) GetAllProject(c echo.Context) error {
 			CreatedAt:     value.CreatedAt,
 		})
 	}
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "success read data", projectResponse))
 
+	helpers.WebResponse(c, http.StatusOK, "Success reading data", projectResponse)
 }
 
-func (handler *ProjectHandler) GetProjectById(c echo.Context) error {
-	// Ambil ID proyek dari parameter URL
-	id := c.Param("projectid")
-	idConv, errConv := strconv.Atoi(id)
-	if errConv != nil || idConv <= 0 {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "Invalid project ID", nil))
+func (handler *ProjectHandler) GetProjectById(c *gin.Context) {
+	projectID, err := strconv.Atoi(c.Param("projectid"))
+	if err != nil || projectID <= 0 {
+		helpers.WebResponse(c, http.StatusBadRequest, "Invalid project ID", nil)
+		return
 	}
 
-	// Panggil fungsi service untuk mendapatkan detail proyek
-	result, err := handler.projectService.GetById(uint(idConv))
+	result, err := handler.projectService.GetById(uint(projectID))
 	if err != nil {
 		if strings.Contains(err.Error(), "validation") {
-			return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, err.Error(), nil))
+			helpers.WebResponse(c, http.StatusBadRequest, err.Error(), nil)
 		} else {
-			return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "Error reading data", nil))
+			helpers.WebResponse(c, http.StatusInternalServerError, "Error reading data", nil)
 		}
+		return
 	}
 
-	resultResponse := ProjectResponse{
+	projectResponse := ProjectResponse{
 		ID:            result.ID,
 		Name:          result.Name,
 		UserID:        result.UserID,
@@ -91,55 +97,58 @@ func (handler *ProjectHandler) GetProjectById(c echo.Context) error {
 		CreatedAt:     result.CreatedAt,
 	}
 
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "Success reading data", resultResponse))
+	helpers.WebResponse(c, http.StatusOK, "Success reading data", projectResponse)
 }
 
-func (handler *ProjectHandler) UpdateProject(c echo.Context) error {
-	// Ambil `user_id` dari parameter URL
+func (handler *ProjectHandler) UpdateProject(c *gin.Context) {
+	// Ambil ID pengguna dari token
 	id := middlewares.ExtractTokenUserId(c)
-	userID, err := strconv.Atoi(c.Param("projectid"))
-	if err != nil || userID <= 0 {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "Invalid user_id", nil))
-	}
 
-	// Ambil data pengguna yang akan diperbarui dari permintaan JSON
-	projectInput := new(ProjectRequest)
-	errBind := c.Bind(&projectInput)
-	if errBind != nil {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "Error binding data", nil))
-	}
-
-	// Mapping data dari UserRequest ke struct Core
-	projectCore := RequestToCore(*projectInput)
-	projectCore.UserID = uint(id)
-
-	// Panggil fungsi service untuk memperbarui pengguna
-	err = handler.projectService.Update(uint(userID), projectCore)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return c.JSON(http.StatusNotFound, helpers.WebResponse(http.StatusNotFound, "project not found", nil))
-		}
-		return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "Error updating project", nil))
-	}
-
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "Project updated successfully", nil))
-}
-
-func (handler *ProjectHandler) DeleteProject(c echo.Context) error {
-	// Ambil `user_id` dari parameter URL
 	projectID, err := strconv.Atoi(c.Param("projectid"))
 	if err != nil || projectID <= 0 {
-		return c.JSON(http.StatusBadRequest, helpers.WebResponse(http.StatusBadRequest, "Invalid user_id", nil))
+		helpers.WebResponse(c, http.StatusBadRequest, "Invalid project ID", nil)
+		return
 	}
 
-	// Panggil fungsi service untuk menghapus pengguna berdasarkan `user_id`
+	var projectInput ProjectRequest
+	if err := c.BindJSON(&projectInput); err != nil {
+		helpers.WebResponse(c, http.StatusBadRequest, "Error binding data", nil)
+		return
+	}
+
+	// Mapping dari struct request ke struct core
+	projectCore := RequestToCore(projectInput)
+	projectCore.UserID = uint(id)
+
+	err = handler.projectService.Update(uint(projectID), projectCore)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			helpers.WebResponse(c, http.StatusNotFound, "Project not found", nil)
+		} else {
+			helpers.WebResponse(c, http.StatusInternalServerError, "Error updating project", nil)
+		}
+		return
+	}
+
+	helpers.WebResponse(c, http.StatusOK, "Project updated successfully", nil)
+}
+
+func (handler *ProjectHandler) DeleteProject(c *gin.Context) {
+	projectID, err := strconv.Atoi(c.Param("projectid"))
+	if err != nil || projectID <= 0 {
+		helpers.WebResponse(c, http.StatusBadRequest, "Invalid project ID", nil)
+		return
+	}
+
 	err = handler.projectService.Deletes(uint(projectID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return c.JSON(http.StatusNotFound, helpers.WebResponse(http.StatusNotFound, "Project not found", nil))
+			helpers.WebResponse(c, http.StatusNotFound, "Project not found", nil)
+		} else {
+			helpers.WebResponse(c, http.StatusInternalServerError, "Error deleting project", nil)
 		}
-		return c.JSON(http.StatusInternalServerError, helpers.WebResponse(http.StatusInternalServerError, "Error deleting Project", nil))
+		return
 	}
 
-	return c.JSON(http.StatusOK, helpers.WebResponse(http.StatusOK, "Project deleted successfully", nil))
+	helpers.WebResponse(c, http.StatusOK, "Project deleted successfully", nil)
 }
